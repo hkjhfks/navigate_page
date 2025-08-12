@@ -11,11 +11,57 @@ interface Bookmark {
   gradient?: string
 }
 
+// Gradient palette (stable order)
+const GRADIENTS = [
+  'from-purple-400 via-pink-500 to-red-500',
+  'from-green-400 via-blue-500 to-purple-600', 
+  'from-yellow-400 via-orange-500 to-red-500',
+  'from-blue-400 via-purple-500 to-pink-500',
+  'from-indigo-400 via-purple-500 to-pink-500',
+  'from-pink-400 via-red-500 to-yellow-500'
+]
+
+const hashId = (id: string) =>
+  Array.from(id).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+
+const pickGradientById = (id: string) => GRADIENTS[hashId(id) % GRADIENTS.length]
+
+const ensureGradient = (b: Bookmark): Bookmark => (
+  b.gradient ? b : { ...b, gradient: pickGradientById(b.id) }
+)
+
+const safeGetHostname = (rawUrl: string): string => {
+  try {
+    return new URL(rawUrl).hostname
+  } catch {
+    return ''
+  }
+}
+
+const normalizeUrl = (raw: string): string | null => {
+  const input = raw.trim()
+  if (!input) return null
+  const accept = (u: URL) => (u.protocol === 'http:' || u.protocol === 'https:')
+  try {
+    const u = new URL(input)
+    if (accept(u)) return u.toString()
+  } catch {}
+  try {
+    const u2 = new URL(`https://${input}`)
+    if (accept(u2)) return u2.toString()
+  } catch {}
+  return null
+}
+
 export default function HomePage() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null)
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    const saved = localStorage.getItem('dark-mode')
+    return saved ? JSON.parse(saved) : false
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const particlesRef = useRef<HTMLDivElement>(null)
@@ -57,20 +103,18 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  // 加载书签数据
+  // 加载书签数据（移除人为延时，并为旧数据补全渐变）
   useEffect(() => {
-    setTimeout(() => {
-      const savedBookmarks = localStorage.getItem('navigation-bookmarks')
-      if (savedBookmarks) {
-        setBookmarks(JSON.parse(savedBookmarks))
+    const saved = localStorage.getItem('navigation-bookmarks')
+    if (saved) {
+      const parsed: Bookmark[] = JSON.parse(saved)
+      const withGrad = parsed.map(ensureGradient)
+      setBookmarks(withGrad)
+      if (withGrad.some((b, i) => !parsed[i].gradient)) {
+        localStorage.setItem('navigation-bookmarks', JSON.stringify(withGrad))
       }
-      
-      const savedDarkMode = localStorage.getItem('dark-mode')
-      if (savedDarkMode) {
-        setDarkMode(JSON.parse(savedDarkMode))
-      }
-      setIsLoading(false)
-    }, 1000)
+    }
+    setIsLoading(false)
   }, [])
 
   // 保存书签数据
@@ -100,44 +144,52 @@ export default function HomePage() {
     }
   }
 
-  // 添加书签
+  // 添加书签（带 URL 校验与稳定渐变）
   const handleAddBookmark = () => {
-    if (formData.name && formData.url) {
-      const newBookmark: Bookmark = {
-        id: Date.now().toString(),
-        name: formData.name,
-        url: formData.url.startsWith('http') ? formData.url : `https://${formData.url}`,
-        icon: formData.icon
-      }
-      saveBookmarks([...bookmarks, newBookmark])
-      setFormData({ name: '', url: '', icon: '' })
-      setShowAddForm(false)
+    if (!formData.name || !formData.url) return
+    const normalized = normalizeUrl(formData.url)
+    if (!normalized) {
+      alert('请输入合法的网址（仅支持 http/https）')
+      return
     }
+    const newBookmark: Bookmark = ensureGradient({
+      id: Date.now().toString(),
+      name: formData.name.trim(),
+      url: normalized,
+      icon: formData.icon.trim() || undefined,
+    })
+    saveBookmarks([...bookmarks, newBookmark])
+    setFormData({ name: '', url: '', icon: '' })
+    setShowAddForm(false)
   }
 
-  // 编辑书签
+  // 编辑书签（带 URL 校验，保留原有渐变）
   const handleEditBookmark = () => {
-    if (editingBookmark && formData.name && formData.url) {
-      const updatedBookmarks = bookmarks.map(bookmark =>
-        bookmark.id === editingBookmark.id
-          ? {
-              ...bookmark,
-              name: formData.name,
-              url: formData.url.startsWith('http') ? formData.url : `https://${formData.url}`,
-              icon: formData.icon
-            }
-          : bookmark
-      )
-      saveBookmarks(updatedBookmarks)
-      setEditingBookmark(null)
-      setFormData({ name: '', url: '', icon: '' })
+    if (!editingBookmark || !formData.name || !formData.url) return
+    const normalized = normalizeUrl(formData.url)
+    if (!normalized) {
+      alert('请输入合法的网址（仅支持 http/https）')
+      return
     }
+  const updatedBookmarks = bookmarks.map((bookmark: Bookmark) =>
+      bookmark.id === editingBookmark.id
+        ? {
+            ...bookmark,
+            name: formData.name.trim(),
+            url: normalized,
+            icon: formData.icon.trim() || undefined,
+          }
+        : bookmark
+    )
+    saveBookmarks(updatedBookmarks)
+    setEditingBookmark(null)
+    setFormData({ name: '', url: '', icon: '' })
   }
 
   // 删除书签
   const handleDeleteBookmark = (id: string) => {
     if (confirm('确定要删除这个书签吗？')) {
-      saveBookmarks(bookmarks.filter(bookmark => bookmark.id !== id))
+      saveBookmarks(bookmarks.filter((bookmark: Bookmark) => bookmark.id !== id))
     }
   }
 
@@ -160,23 +212,12 @@ export default function HomePage() {
   }
 
   // 过滤书签
-  const filteredBookmarks = bookmarks.filter(bookmark =>
+  const filteredBookmarks = bookmarks.filter((bookmark: Bookmark) =>
     bookmark.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     bookmark.url.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  // 获取随机渐变色
-  const getRandomGradient = () => {
-    const gradients = [
-      'from-purple-400 via-pink-500 to-red-500',
-      'from-green-400 via-blue-500 to-purple-600', 
-      'from-yellow-400 via-orange-500 to-red-500',
-      'from-blue-400 via-purple-500 to-pink-500',
-      'from-indigo-400 via-purple-500 to-pink-500',
-      'from-pink-400 via-red-500 to-yellow-500'
-    ]
-    return gradients[Math.floor(Math.random() * gradients.length)]
-  }
+  // 渐变颜色已通过 ensureGradient 保持稳定
 
   if (isLoading) {
     return (
@@ -228,7 +269,7 @@ export default function HomePage() {
                 type="text"
                 placeholder="搜索网站..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                 className={`pl-10 pr-4 py-2 rounded-xl border-2 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all ${
                   darkMode 
                     ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400 backdrop-blur-sm' 
@@ -240,6 +281,7 @@ export default function HomePage() {
             
             <button
               onClick={toggleDarkMode}
+              aria-label={darkMode ? '切换为浅色模式' : '切换为深色模式'}
               className={`p-3 rounded-xl transition-all duration-300 backdrop-blur-sm transform hover:scale-110 ${
                 darkMode 
                   ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 shadow-lg shadow-yellow-500/25' 
@@ -251,6 +293,7 @@ export default function HomePage() {
             
             <button
               onClick={() => setShowAddForm(true)}
+              aria-label="添加网站"
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg backdrop-blur-sm ${
                 darkMode
                   ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-purple-500/25 hover:shadow-purple-500/40'
@@ -282,7 +325,7 @@ export default function HomePage() {
                   type="text"
                   placeholder="网站名称"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all backdrop-blur-sm ${
                     darkMode 
                       ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400' 
@@ -297,7 +340,7 @@ export default function HomePage() {
                   type="text"
                   placeholder="网站地址 (例: github.com)"
                   value={formData.url}
-                  onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, url: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all backdrop-blur-sm ${
                     darkMode 
                       ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400' 
@@ -312,7 +355,7 @@ export default function HomePage() {
                   type="text"
                   placeholder="图标URL (可选)"
                   value={formData.icon}
-                  onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, icon: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all backdrop-blur-sm ${
                     darkMode 
                       ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400' 
@@ -384,8 +427,10 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6">
-            {filteredBookmarks.map((bookmark, index) => {
-              const randomGradient = getRandomGradient()
+            {filteredBookmarks.map((bookmark: Bookmark, index: number) => {
+              const gradient = bookmark.gradient ?? pickGradientById(bookmark.id)
+              const favicon = getFavicon(bookmark.url, bookmark.icon)
+              const host = safeGetHostname(bookmark.url)
               return (
                 <div
                   key={bookmark.id}
@@ -395,11 +440,11 @@ export default function HomePage() {
                   <div className="flex flex-col items-center text-center relative">
                     <div className="relative mb-4">
                       <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${
-                        darkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : `bg-gradient-to-br ${randomGradient}`
+                        darkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : `bg-gradient-to-br ${gradient}`
                       } shadow-lg group-hover:shadow-2xl`}>
-                        {getFavicon(bookmark.url, bookmark.icon) ? (
+                        {favicon ? (
                           <img
-                            src={getFavicon(bookmark.url, bookmark.icon)!}
+                            src={favicon}
                             alt={bookmark.name}
                             className="w-10 h-10 rounded-lg transition-transform duration-300 group-hover:scale-110"
                             onError={(e) => {
@@ -411,7 +456,7 @@ export default function HomePage() {
                         ) : null}
                         <Globe 
                           size={24} 
-                          className={`${getFavicon(bookmark.url, bookmark.icon) ? 'hidden' : 'animate-pulse'} text-white`}
+                          className={`${favicon ? 'hidden' : 'animate-pulse'} text-white`}
                         />
                       </div>
                       
@@ -420,6 +465,7 @@ export default function HomePage() {
                         <div className="flex gap-1">
                           <button
                             onClick={() => startEdit(bookmark)}
+                            aria-label={`编辑 ${bookmark.name}`}
                             className="bg-blue-500/90 hover:bg-blue-500 text-white p-1.5 rounded-lg text-xs backdrop-blur-sm transition-all duration-300 transform hover:scale-110 shadow-lg"
                             title="编辑"
                           >
@@ -427,6 +473,7 @@ export default function HomePage() {
                           </button>
                           <button
                             onClick={() => handleDeleteBookmark(bookmark.id)}
+                            aria-label={`删除 ${bookmark.name}`}
                             className="bg-red-500/90 hover:bg-red-500 text-white p-1.5 rounded-lg text-xs backdrop-blur-sm transition-all duration-300 transform hover:scale-110 shadow-lg"
                             title="删除"
                           >
@@ -436,7 +483,7 @@ export default function HomePage() {
                       </div>
                       
                       {/* 装饰性光环 */}
-                      <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-500 bg-gradient-to-r ${randomGradient} blur-xl`}></div>
+                      <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-500 bg-gradient-to-r ${gradient} blur-xl`}></div>
                     </div>
                     
                     <a
@@ -451,11 +498,13 @@ export default function HomePage() {
                       <ExternalLink size={12} className="flex-shrink-0 opacity-60 group-hover:opacity-100" />
                     </a>
                     
-                    <p className={`text-xs opacity-60 group-hover:opacity-80 transition-opacity duration-300 truncate w-full ${
-                      darkMode ? 'text-gray-300' : 'text-gray-600'
-                    }`}>
-                      {new URL(bookmark.url).hostname}
-                    </p>
+                    {host && (
+                      <p className={`text-xs opacity-60 group-hover:opacity-80 transition-opacity duration-300 truncate w-full ${
+                        darkMode ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
+                        {host}
+                      </p>
+                    )}
                   </div>
                 </div>
               )
