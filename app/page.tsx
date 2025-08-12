@@ -460,8 +460,8 @@ export default function HomePage() {
                         />
                       </div>
                       
-                      {/* 悬浮操作按钮 */}
-                      <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                      {/* 悬浮操作按钮（移动端默认可见） */}
+                      <div className="absolute -top-2 -right-2 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:translate-y-2 md:group-hover:translate-y-0">
                         <div className="flex gap-1">
                           <button
                             onClick={() => startEdit(bookmark)}
@@ -482,8 +482,8 @@ export default function HomePage() {
                         </div>
                       </div>
                       
-                      {/* 装饰性光环 */}
-                      <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-500 bg-gradient-to-r ${gradient} blur-xl`}></div>
+                      {/* 装饰性光环（不拦截鼠标事件） */}
+                      <div aria-hidden className={`pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-500 bg-gradient-to-r ${gradient} blur-xl`}></div>
                     </div>
                     
                     <a

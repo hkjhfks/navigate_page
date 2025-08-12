@@ -105,6 +105,7 @@ body {
     transparent
   );
   transition: left 0.5s;
+  pointer-events: none; /* avoid blocking clicks */
 }
 
 .glass:hover::before {
@@ -295,6 +296,7 @@ body {
   opacity: 0;
   transition: opacity 0.3s ease;
   transform: scale(0);
+  pointer-events: none; /* avoid blocking clicks */
 }
 
 .bookmark-card:hover::after {
