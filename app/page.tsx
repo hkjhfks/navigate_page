@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Edit, Trash2, ExternalLink, Globe, Moon, Sun, Sparkles, Star, Zap } from 'lucide-react'
+import Image from 'next/image'
 
 interface Bookmark {
   id: string
@@ -220,13 +221,21 @@ export default function HomePage() {
   // 渐变颜色已通过 ensureGradient 保持稳定
 
   if (isLoading) {
+    // Skeleton grid for better perceived performance
     return (
-      <div className={`min-h-screen flex items-center justify-center transition-colors duration-500 ${darkMode ? 'dark bg-gray-900' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'}`}>
-        <div className="text-center animate-bounce-in">
-          <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-            正在加载您的导航页面...
-          </h2>
+      <div className={`min-h-screen transition-all duration-500 relative overflow-hidden ${darkMode ? 'dark bg-gradient-to-br from-gray-950 via-purple-950 to-violet-900' : 'bg-gradient-to-br from-slate-50 via-indigo-50 via-purple-50 to-pink-50'} bg-grid`}>
+        <div className="aurora" />
+        <div className="noise" />
+        <div className="relative z-10 container mx-auto px-4 py-10 max-w-6xl">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="glass ring-gradient skeleton-card animate-fade-in" style={{ animationDelay: `${i * 0.04}s` }}>
+                <div className="loading-skeleton skeleton-avatar" />
+                <div className="loading-skeleton skeleton-line w-4/5" />
+                <div className="loading-skeleton skeleton-line w-2/3" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -234,8 +243,10 @@ export default function HomePage() {
 
   return (
   <div className={`min-h-screen transition-all duration-500 relative overflow-hidden ${darkMode ? 'dark bg-gradient-to-br from-gray-950 via-purple-950 to-violet-900' : 'bg-gradient-to-br from-slate-50 via-indigo-50 via-purple-50 to-pink-50'} bg-grid`}>
-      {/* 背景粒子效果 */}
-      <div ref={particlesRef} className="bg-particles"></div>
+  {/* 背景粒子效果 + 极光与噪声层 */}
+  <div ref={particlesRef} className="bg-particles"></div>
+  <div className="aurora" />
+  <div className="noise" />
       
       {/* 背景装饰 */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
@@ -307,86 +318,93 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 添加/编辑表单 */}
+        {/* 添加/编辑模态框 */}
         {showAddForm && (
-          <div className="glass p-8 mb-12 animate-slide-up backdrop-blur-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <div className={`p-2 rounded-lg ${editingBookmark ? 'bg-orange-500/20 text-orange-500' : 'bg-green-500/20 text-green-500'}`}>
-                {editingBookmark ? <Edit size={20} /> : <Plus size={20} />}
+          <div className="modal-backdrop" role="dialog" aria-modal>
+            <div className={`glass modal-panel p-6 sm:p-8`}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${editingBookmark ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-500'}`}>
+                    {editingBookmark ? <Edit size={20} /> : <Plus size={20} />}
+                  </div>
+                  <h3 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {editingBookmark ? '编辑网站' : '添加新网站'}
+                  </h3>
+                </div>
+                <button onClick={cancelOperation} aria-label="关闭" className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+                  ✕
+                </button>
               </div>
-              <h3 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                {editingBookmark ? '✨ 编辑网站' : '🚀 添加新网站'}
-              </h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="网站名称"
-                  value={formData.name}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
-                  className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all backdrop-blur-sm ${
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="网站名称"
+                    value={formData.name}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
+                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none transition-all backdrop-blur-sm ${
+                      darkMode 
+                        ? 'bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:ring-4 focus:ring-indigo-500/25' 
+                        : 'bg-white/70 border-gray-200 focus:ring-4 focus:ring-indigo-500/25'
+                    }`}
+                  />
+                  <Star className={`absolute right-3 top-3.5 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </div>
+                
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="网站地址 (例: github.com)"
+                    value={formData.url}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, url: e.target.value })}
+                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none transition-all backdrop-blur-sm ${
+                      darkMode 
+                        ? 'bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:ring-4 focus:ring-indigo-500/25' 
+                        : 'bg-white/70 border-gray-200 focus:ring-4 focus:ring-indigo-500/25'
+                    }`}
+                  />
+                  <Globe className={`absolute right-3 top-3.5 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </div>
+                
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="图标URL (可选)"
+                    value={formData.icon}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, icon: e.target.value })}
+                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none transition-all backdrop-blur-sm ${
+                      darkMode 
+                        ? 'bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:ring-4 focus:ring-indigo-500/25' 
+                        : 'bg-white/70 border-gray-200 focus:ring-4 focus:ring-indigo-500/25'
+                    }`}
+                  />
+                  <Sparkles className={`absolute right-3 top-3.5 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 sm:gap-4 mt-6 sm:mt-8">
+                <button
+                  onClick={cancelOperation}
+                  className={`px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium transition-all ${
                     darkMode 
-                      ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400' 
-                      : 'bg-white/70 border-gray-200'
+                      ? 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/60 backdrop-blur-sm' 
+                      : 'bg-gray-200/70 text-gray-700 hover:bg-gray-300/70 backdrop-blur-sm'
                   }`}
-                />
-                <Star className={`absolute right-3 top-3.5 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-              </div>
-              
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="网站地址 (例: github.com)"
-                  value={formData.url}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, url: e.target.value })}
-                  className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all backdrop-blur-sm ${
-                    darkMode 
-                      ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400' 
-                      : 'bg-white/70 border-gray-200'
+                >
+                  取消
+                </button>
+                <button
+                  onClick={editingBookmark ? handleEditBookmark : handleAddBookmark}
+                  className={`px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-all shadow-lg backdrop-blur-sm ${
+                    darkMode
+                      ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-violet-600/20 hover:shadow-violet-600/30'
+                      : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-indigo-600/20 hover:shadow-indigo-600/30'
                   }`}
-                />
-                <Globe className={`absolute right-3 top-3.5 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                >
+                  {editingBookmark ? '保存' : '添加'}
+                </button>
               </div>
-              
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="图标URL (可选)"
-                  value={formData.icon}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, icon: e.target.value })}
-                  className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all backdrop-blur-sm ${
-                    darkMode 
-                      ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400' 
-                      : 'bg-white/70 border-gray-200'
-                  }`}
-                />
-                <Sparkles className={`absolute right-3 top-3.5 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-4 mt-8">
-              <button
-                onClick={cancelOperation}
-                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                  darkMode 
-                    ? 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 backdrop-blur-sm' 
-                    : 'bg-gray-200/70 text-gray-600 hover:bg-gray-300/70 backdrop-blur-sm'
-                }`}
-              >
-                取消
-              </button>
-              <button
-                onClick={editingBookmark ? handleEditBookmark : handleAddBookmark}
-                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg backdrop-blur-sm ${
-                  darkMode
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-purple-500/25 hover:shadow-purple-500/40'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-blue-500/25 hover:shadow-blue-500/40'
-                }`}
-              >
-                {editingBookmark ? '💾 保存' : '✨ 添加'}
-              </button>
             </div>
           </div>
         )}
@@ -434,7 +452,7 @@ export default function HomePage() {
               return (
                 <div
                   key={bookmark.id}
-                  className={`glass bookmark-card p-6 group transition-all duration-500 animate-fade-in backdrop-blur-xl`}
+                  className={`glass ring-gradient shine bookmark-card p-6 group transition-all duration-500 animate-fade-in backdrop-blur-xl`}
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <div className="flex flex-col items-center text-center relative">
@@ -443,15 +461,13 @@ export default function HomePage() {
                         darkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : `bg-gradient-to-br ${gradient}`
                       } shadow-lg group-hover:shadow-2xl`}>
                         {favicon ? (
-                          <img
+                          <Image
                             src={favicon}
                             alt={bookmark.name}
-                            className="w-10 h-10 rounded-lg transition-transform duration-300 group-hover:scale-110"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement
-                              target.style.display = 'none'
-                              target.nextElementSibling!.classList.remove('hidden')
-                            }}
+                            width={40}
+                            height={40}
+                            className="rounded-lg transition-transform duration-300 group-hover:scale-110"
+                            onError={() => { /* next/image handles fallback by not rendering; we rely on Globe */ }}
                           />
                         ) : null}
                         <Globe 
