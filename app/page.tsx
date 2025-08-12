@@ -10,6 +10,7 @@ interface Bookmark {
   url: string
   icon?: string
   gradient?: string
+  blobUrl?: string // if uploaded to Vercel Blob
 }
 
 // Gradient palette (stable order)
@@ -71,6 +72,24 @@ export default function HomePage() {
     url: '',
     icon: ''
   })
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const handleUploadIcon = async (file: File) => {
+    try {
+      setUploading(true)
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || '上传失败')
+      setFormData(prev => ({ ...prev, icon: data.url }))
+    } catch (e: any) {
+      alert(e?.message || '上传失败')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   // 初始化背景粒子效果（降低密度）
   useEffect(() => {
@@ -188,10 +207,18 @@ export default function HomePage() {
   }
 
   // 删除书签
-  const handleDeleteBookmark = (id: string) => {
-    if (confirm('确定要删除这个书签吗？')) {
-      saveBookmarks(bookmarks.filter((bookmark: Bookmark) => bookmark.id !== id))
+  const handleDeleteBookmark = async (id: string) => {
+    const target = bookmarks.find(b => b.id === id)
+    if (!target) return
+    if (!confirm('确定要删除这个书签吗？')) return
+    // 如果 icon 是本站 Blob 链接，则调用后端删除
+    const isBlob = typeof target.icon === 'string' && target.icon.startsWith('https://') && target.icon.includes('.blob.vercel-storage.com')
+    if (isBlob) {
+      try {
+        await fetch('/api/upload', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: target.icon }) })
+      } catch {}
     }
+    saveBookmarks(bookmarks.filter((bookmark: Bookmark) => bookmark.id !== id))
   }
 
   // 开始编辑
@@ -380,6 +407,35 @@ export default function HomePage() {
                     }`}
                   />
                   <Sparkles className={`absolute right-3 top-3.5 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </div>
+                <div className="flex items-center gap-3 md:col-span-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) handleUploadIcon(f)
+                      // reset to allow same file reselect
+                      if (fileInputRef.current) fileInputRef.current.value = ''
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      darkMode
+                        ? 'bg-white/10 text-white hover:bg-white/15 disabled:opacity-50'
+                        : 'bg-black/5 text-gray-800 hover:bg-black/10 disabled:opacity-50'
+                    }`}
+                  >
+                    {uploading ? '上传中…' : '上传图标到本站'}
+                  </button>
+                  {formData.icon && (
+                    <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>已选择：{formData.icon.split('/').pop()}</span>
+                  )}
                 </div>
               </div>
 

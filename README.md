@@ -48,6 +48,20 @@ vercel
 3. 选择您的GitHub仓库
 4. 点击部署
 
+### 图标上传（Vercel Blob）
+
+如需将图标上传到云端并在删除书签时自动清理，请在 Vercel 项目的环境变量中设置：
+
+- `BLOB_READ_WRITE_TOKEN`：Vercel Blob 的读写令牌。
+
+并在本地安装依赖后再部署：
+
+```bash
+npm install @vercel/blob
+```
+
+如果未配置该令牌，上传接口会返回 501，前端仍可使用外链图标或继续使用本地 Data URL 方案。
+
 ## 使用说明
 
 1. 点击"添加网站"按钮来添加新的书签
