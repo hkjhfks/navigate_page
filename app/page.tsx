@@ -71,7 +71,7 @@ export default function HomePage() {
     icon: ''
   })
 
-  // 初始化背景粒子效果
+  // 初始化背景粒子效果（降低密度）
   useEffect(() => {
     const createParticle = () => {
       if (!particlesRef.current) return
@@ -93,10 +93,10 @@ export default function HomePage() {
       }, 25000)
     }
     
-    const interval = setInterval(createParticle, 3000)
+  const interval = setInterval(createParticle, 5000)
     
     // 初始创建几个粒子
-    for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
       setTimeout(createParticle, i * 1000)
     }
     
@@ -233,7 +233,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className={`min-h-screen transition-all duration-500 relative overflow-hidden ${darkMode ? 'dark bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900' : 'bg-gradient-to-br from-blue-50 via-indigo-50 via-purple-50 to-pink-50'}`}>
+  <div className={`min-h-screen transition-all duration-500 relative overflow-hidden ${darkMode ? 'dark bg-gradient-to-br from-gray-950 via-purple-950 to-violet-900' : 'bg-gradient-to-br from-slate-50 via-indigo-50 via-purple-50 to-pink-50'} bg-grid`}>
       {/* 背景粒子效果 */}
       <div ref={particlesRef} className="bg-particles"></div>
       
@@ -248,14 +248,14 @@ export default function HomePage() {
         {/* 头部 */}
         <div className="flex flex-col lg:flex-row justify-between items-center mb-12 gap-6">
           <div className="text-center lg:text-left">
-            <h1 className={`text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r bg-clip-text text-transparent animate-wave ${
+            <h1 className={`text-5xl lg:text-6xl font-extrabold tracking-tight mb-4 bg-gradient-to-r bg-clip-text text-transparent ${
               darkMode 
-                ? 'from-white via-purple-200 to-pink-200' 
-                : 'from-gray-800 via-purple-600 to-pink-600'
+                ? 'from-white via-violet-200 to-pink-200' 
+                : 'from-slate-800 via-indigo-600 to-pink-600'
             }`}>
-              <Sparkles className="inline-block mr-3 text-yellow-400 animate-pulse" size={40} />
+              <Sparkles className="inline-block mr-3 text-amber-400" size={36} />
               我的导航页面
-              <Star className="inline-block ml-3 text-blue-400 animate-bounce" size={32} />
+              <Star className="inline-block ml-3 text-sky-400" size={28} />
             </h1>
             <p className={`text-lg opacity-80 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               打造专属于你的精美导航体验
@@ -282,27 +282,27 @@ export default function HomePage() {
             <button
               onClick={toggleDarkMode}
               aria-label={darkMode ? '切换为浅色模式' : '切换为深色模式'}
-              className={`p-3 rounded-xl transition-all duration-300 backdrop-blur-sm transform hover:scale-110 ${
+              className={`p-3 rounded-xl transition-all duration-300 backdrop-blur-sm hover:scale-105 ${
                 darkMode 
-                  ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 shadow-lg shadow-yellow-500/25' 
-                  : 'bg-purple-500/20 text-purple-600 hover:bg-purple-500/30 shadow-lg shadow-purple-500/25'
+                  ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 shadow-lg shadow-amber-500/10' 
+                  : 'bg-indigo-500/15 text-indigo-600 hover:bg-indigo-500/25 shadow-lg shadow-indigo-500/10'
               }`}
             >
-              {darkMode ? <Sun size={20} className="animate-rotate-slow" /> : <Moon size={20} className="animate-pulse" />}
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             
             <button
               onClick={() => setShowAddForm(true)}
               aria-label="添加网站"
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg backdrop-blur-sm ${
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg backdrop-blur-sm ${
                 darkMode
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-purple-500/25 hover:shadow-purple-500/40'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-blue-500/25 hover:shadow-blue-500/40'
+                  ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-violet-600/20 hover:shadow-violet-600/30'
+                  : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-indigo-600/20 hover:shadow-indigo-600/30'
               }`}
             >
-              <Plus size={20} className="animate-pulse" />
+              <Plus size={20} />
               添加网站
-              <Zap size={16} className="animate-bounce" />
+              <Zap size={16} />
             </button>
           </div>
         </div>
